@@ -1,0 +1,18 @@
+# Binaries for programs and plugins
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Environment
+.env
+
+# VSCode
+/.vscode/
+
+# Application storage
+/storage/
+
+# Databases
+*.sqlite3
