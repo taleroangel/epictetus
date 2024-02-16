@@ -1,20 +1,29 @@
-package storage
+package database
 
 import (
 	"context"
 	"database/sql"
 	"errors"
+	"path"
 
 	"dev/taleroangel/epictetus/internal/env"
 	"dev/taleroangel/epictetus/internal/security"
+	"dev/taleroangel/epictetus/internal/storage"
 	"dev/taleroangel/epictetus/internal/types"
 
 	_ "embed"
 )
 
-const (
+// Custom error to represent absence of results
+type NullDatabaseReference struct{}
+
+func (e NullDatabaseReference) Error() string {
+	return "database reference was null"
+}
+
+var (
 	// Setup database filename
-	DbFilename = (StoragePath + "data.sqlite3")
+	DbFilename = path.Join(storage.StoragePath, "data.sqlite3")
 )
 
 // Scripts embeded queries
@@ -23,12 +32,14 @@ var (
 	databaseSchemaSql string
 	//go:embed scripts/create_user_stmt.sql
 	createUserStmtSql string
+	//go:embed scripts/user_by_username_query.sql
+	userByUsernameQrySql string
 )
 
 // Create the setup database with initial provided credentials
 func CreateDatabase(ctx context.Context, db *sql.DB) error {
 	if db == nil {
-		return errors.New("database reference is null")
+		return NullDatabaseReference{}
 	}
 
 	// Hash password
@@ -73,4 +84,37 @@ func CreateDatabase(ctx context.Context, db *sql.DB) error {
 
 	// Return latest error
 	return err
+}
+
+// * Queries * //
+
+func QueryUserByUsername(ctx context.Context, username string) (*types.User, error) {
+	// Get database from context
+	db := ctx.Value(env.DatabaseContext).(*sql.DB)
+	if db == nil {
+		return nil, NullDatabaseReference{}
+	}
+
+	// Prepare the statement
+	stmt, err := db.Prepare(userByUsernameQrySql)
+	if err != nil {
+		return nil, err
+	}
+
+	// Execute the statement
+	row := stmt.QueryRow(username)
+	if row.Err() != nil {
+		// Returned without results
+		return nil, row.Err()
+	}
+
+	// Get user from database
+	var user types.User
+	err = row.Scan(&user.User, &user.HashPass, &user.Name, &user.Sudo)
+	if err != nil {
+		return nil, err
+	}
+
+	// User is queried
+	return &user, nil
 }

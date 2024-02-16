@@ -13,6 +13,17 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
+// Calculate password hash with BCrypt algorithm for secure storage
+func HashPassword(password string) (string, error) {
+	bytes, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	return string(bytes), err
+}
+
+// Check if password and hash match
+func CheckPassword(password string, hash string) bool {
+	return bcrypt.CompareHashAndPassword([]byte(hash), []byte(password)) == nil
+}
+
 // JWT token user claim
 type UserClaim struct {
 	jwt.RegisteredClaims
@@ -40,16 +51,10 @@ func (uc UserClaim) NewUser() *types.User {
 	}
 }
 
-// Calculate password hash with BCrypt algorithm for secure storage
-func HashPassword(password string) (string, error) {
-	bytes, err := bcrypt.GenerateFromPassword([]byte(password), 14)
-	return string(bytes), err
-}
-
 // Generate an authentication token JWT
 func GenerateToken(ctx context.Context, user types.User) (string, error) {
 	// Obtain token valid time
-	tvf, err := strconv.Atoi(ctx.Value(env.TokenValidFor).(string))
+	tvf, err := strconv.Atoi(ctx.Value(env.TokenTTL).(string))
 	if err != nil {
 		return "", err
 	}
@@ -57,8 +62,14 @@ func GenerateToken(ctx context.Context, user types.User) (string, error) {
 	// Generate the token
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, NewUserClaim(user, time.Duration(tvf)*time.Hour))
 
+	// Get the key
+	key, present := ctx.Value(env.SecretKey).(string)
+	if !present {
+		panic("env.SecretKey environment variable is not set")
+	}
+
 	// Sign it with HMAC
-	return token.SignedString(ctx.Value(env.SecretKey))
+	return token.SignedString([]byte(key))
 }
 
 // Validate generated token, returns the username or error if token is no longer valid

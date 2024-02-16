@@ -4,12 +4,12 @@ DROP TABLE IF EXISTS "Users";
 CREATE TABLE
 	"Users" (
 		-- Attributes
-		"username" TEXT NOT NULL,
-		"password" TEXT NOT NULL,
-		"display_name" TEXT NOT NULL,
+		"user" TEXT NOT NULL,
+		"hash_pass" TEXT NOT NULL,
+		"name" TEXT NOT NULL,
 		"sudo" BOOLEAN NOT NULL DEFAULT 0,
 		-- Constraints
-		PRIMARY KEY ("username")
+		PRIMARY KEY ("user")
 	);
 
 -- Authors
@@ -22,10 +22,10 @@ CREATE TABLE
 		"user" TEXT NOT NULL,
 		"name" TEXT NOT NULL,
 		"description" TEXT DEFAULT NULL,
-		"image_uri" TEXT DEFAULT NULL,
+		"image" TEXT DEFAULT NULL,
 		-- Constraints
 		UNIQUE ("id", "user"),
-		FOREIGN KEY ("user") REFERENCES "Users" ("username")
+		FOREIGN KEY ("user") REFERENCES "Users" ("user")
 	);
 
 -- Quotes
@@ -42,7 +42,7 @@ CREATE TABLE
 		"favorite" BOOLEAN NOT NULL DEFAULT 0,
 		-- Constraints
 		UNIQUE ("id", "user"),
-		FOREIGN KEY ("user") REFERENCES "Users" ("username"),
+		FOREIGN KEY ("user") REFERENCES "Users" ("user"),
 		FOREIGN KEY ("author") REFERENCES "Authors" ("id")
 	);
 
