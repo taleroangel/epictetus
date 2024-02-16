@@ -1,12 +1,9 @@
 package database
 
 import (
-	"context"
 	"database/sql"
 	"path"
 	"testing"
-
-	"dev/taleroangel/epictetus/internal/env"
 
 	_ "github.com/mattn/go-sqlite3"
 )
@@ -28,20 +25,14 @@ func TestUserQueries(t *testing.T) {
 		db.Close()
 	})
 
-	// Create the context and append DB to context
-	ctx := context.Background()
-	ctx = context.WithValue(ctx, env.DatabaseInitialUser, "root")
-	ctx = context.WithValue(ctx, env.DatabaseInitialPass, "testing")
-	ctx = context.WithValue(ctx, env.DatabaseContext, db)
-
 	// Create database
-	CreateDatabase(ctx, db)
+	CreateDbSchema("root", "root", db)
 
 	// Test queries
-	usr, err := QueryUserByUsername(ctx, ctx.Value(env.DatabaseInitialUser).(string))
+	usr, err := QueryUserByUsername(db, "root")
 	if err != nil {
 		t.Error(err)
-	} else if usr.User != ctx.Value(env.DatabaseInitialUser).(string) {
+	} else if usr.User != "root" {
 		t.Error(usr)
 	}
 }

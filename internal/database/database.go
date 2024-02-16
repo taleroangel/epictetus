@@ -1,74 +1,55 @@
 package database
 
 import (
-	"context"
 	"database/sql"
-	"errors"
 	"path"
 
-	"dev/taleroangel/epictetus/internal/env"
+	"dev/taleroangel/epictetus/internal/entities"
 	"dev/taleroangel/epictetus/internal/security"
 	"dev/taleroangel/epictetus/internal/storage"
-	"dev/taleroangel/epictetus/internal/types"
-
-	_ "embed"
 )
-
-// Custom error to represent absence of results
-type NullDatabaseReference struct{}
-
-func (e NullDatabaseReference) Error() string {
-	return "database reference was null"
-}
 
 var (
 	// Setup database filename
 	DbFilename = path.Join(storage.StoragePath, "data.sqlite3")
 )
 
-// Scripts embeded queries
-var (
-	//go:embed scripts/schema.sql
-	databaseSchemaSql string
-	//go:embed scripts/create_user_stmt.sql
-	createUserStmtSql string
-	//go:embed scripts/user_by_username_query.sql
-	userByUsernameQrySql string
-)
+// Custom error to represent absence of database
+type NilDbRefError struct{}
+
+func (e NilDbRefError) Error() string {
+	return "database reference was null"
+}
 
 // Create the setup database with initial provided credentials
-func CreateDatabase(ctx context.Context, db *sql.DB) error {
+func CreateDbSchema(initUsr, initPass string, db *sql.DB) error {
+
 	if db == nil {
-		return NullDatabaseReference{}
+		return NilDbRefError{}
 	}
 
 	// Hash password
-	pass, err := security.HashPassword(ctx.Value(env.DatabaseInitialPass).(string))
+	pass, err := security.HashPassword(initPass)
 	if err != nil {
 		return err
 	}
 
 	// Fetch initial credentials
-	dbadmin := types.User{
-		User:     ctx.Value(env.DatabaseInitialUser).(string),
+	dbadmin := entities.User{
+		User:     initUsr,
 		Name:     "Administrator",
 		HashPass: pass,
 		Sudo:     true,
 	}
 
-	// Check if credentials are valid
-	if (dbadmin.User == "") || (dbadmin.HashPass == "") {
-		return errors.New("initial administrator credentials are missing")
-	}
-
-	// Create the table
-	_, err = db.Exec(databaseSchemaSql)
+	// Create the schema
+	_, err = db.Exec(createSchemaSql)
 	if err != nil {
 		return err
 	}
 
-	// Create the user
-	stmt, err := db.Prepare(createUserStmtSql)
+	// Create the initial user
+	stmt, err := db.Prepare(insertUserSql)
 	if err != nil {
 		return err
 	}
@@ -86,17 +67,15 @@ func CreateDatabase(ctx context.Context, db *sql.DB) error {
 	return err
 }
 
-// * Queries * //
+func QueryUserByUsername(db *sql.DB, username string) (*entities.User, error) {
 
-func QueryUserByUsername(ctx context.Context, username string) (*types.User, error) {
-	// Get database from context
-	db := ctx.Value(env.DatabaseContext).(*sql.DB)
+	// Check if database is present
 	if db == nil {
-		return nil, NullDatabaseReference{}
+		return nil, NilDbRefError{}
 	}
 
 	// Prepare the statement
-	stmt, err := db.Prepare(userByUsernameQrySql)
+	stmt, err := db.Prepare(queryUserByUsernameSql)
 	if err != nil {
 		return nil, err
 	}
@@ -109,7 +88,7 @@ func QueryUserByUsername(ctx context.Context, username string) (*types.User, err
 	}
 
 	// Get user from database
-	var user types.User
+	var user entities.User
 	err = row.Scan(&user.User, &user.HashPass, &user.Name, &user.Sudo)
 	if err != nil {
 		return nil, err

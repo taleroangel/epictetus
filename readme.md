@@ -3,6 +3,7 @@
 ## 🗺️ REST Routes
 
 <table>
+
 <!-- Header -->
 <tr>
 <th>Verb</th>

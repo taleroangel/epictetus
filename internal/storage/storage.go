@@ -7,10 +7,11 @@ const StoragePath = "storage/"
 
 // Create the storage path
 func CreateStoragePath() error {
-	err := os.Mkdir(StoragePath, 0777)
-	if err != nil && os.IsExist(err) {
+	// Create the directory
+	err := os.Mkdir(StoragePath, os.ModePerm)
+	// Check if it exists
+	if os.IsExist(err) || err == nil {
 		return nil
 	}
-
 	return err
 }

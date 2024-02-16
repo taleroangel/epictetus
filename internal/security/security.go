@@ -1,13 +1,11 @@
 package security
 
 import (
-	"context"
-	"dev/taleroangel/epictetus/internal/env"
-	"dev/taleroangel/epictetus/internal/types"
 	"errors"
 	"fmt"
-	"strconv"
 	"time"
+
+	"dev/taleroangel/epictetus/internal/entities"
 
 	"github.com/golang-jwt/jwt/v5"
 	"golang.org/x/crypto/bcrypt"
@@ -31,7 +29,7 @@ type UserClaim struct {
 	Sudo bool
 }
 
-func NewUserClaim(user types.User, exp time.Duration) *UserClaim {
+func NewUserClaim(user entities.User, exp time.Duration) *UserClaim {
 	return &UserClaim{
 		jwt.RegisteredClaims{
 			Subject:   user.User,
@@ -43,8 +41,8 @@ func NewUserClaim(user types.User, exp time.Duration) *UserClaim {
 	}
 }
 
-func (uc UserClaim) NewUser() *types.User {
-	return &types.User{
+func (uc UserClaim) NewUser() *entities.User {
+	return &entities.User{
 		User: uc.Subject,
 		Name: uc.Name,
 		Sudo: uc.Sudo,
@@ -52,28 +50,15 @@ func (uc UserClaim) NewUser() *types.User {
 }
 
 // Generate an authentication token JWT
-func GenerateToken(ctx context.Context, user types.User) (string, error) {
-	// Obtain token valid time
-	tvf, err := strconv.Atoi(ctx.Value(env.TokenTTL).(string))
-	if err != nil {
-		return "", err
-	}
-
+func GenerateToken(secretKey []byte, user entities.User) (string, error) {
 	// Generate the token
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, NewUserClaim(user, time.Duration(tvf)*time.Hour))
-
-	// Get the key
-	key, present := ctx.Value(env.SecretKey).(string)
-	if !present {
-		panic("env.SecretKey environment variable is not set")
-	}
-
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, NewUserClaim(user, 8*time.Hour))
 	// Sign it with HMAC
-	return token.SignedString([]byte(key))
+	return token.SignedString(secretKey)
 }
 
 // Validate generated token, returns the username or error if token is no longer valid
-func ValidateToken(ctx context.Context, token string) (*types.User, error) {
+func ValidateToken(secretKey []byte, token string) (*entities.User, error) {
 	// Parse the claims
 	var claim UserClaim
 
@@ -85,7 +70,7 @@ func ValidateToken(ctx context.Context, token string) (*types.User, error) {
 		}
 
 		// Return the signing key
-		return ctx.Value(env.SecretKey), nil
+		return secretKey, nil
 	})
 
 	// Check if token could be parsed
