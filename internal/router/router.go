@@ -68,6 +68,7 @@ func (router HttpEnvRouter) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	http.NotFound(w, r)
 }
 
+// Apply middleware to a group of routes
 type SubRoute struct {
 	Routes map[string]handler.HttpEnvHdlr
 }
@@ -87,4 +88,23 @@ func (router SubRoute) Serve(env config.SrvEnv, r *http.Request) (any, error) {
 
 	// Subroute not found
 	return nil, errors.NotFoundHttpError()
+}
+
+// Route HTTP Methods to handlers
+type RouteMethods struct {
+	Methods map[string]handler.HttpEnvHdlr
+}
+
+func (m RouteMethods) Serve(env config.SrvEnv, r *http.Request) (any, error) {
+	// Grab the handler from
+	handler, present := m.Methods[r.Method]
+	if !present {
+		return nil, errors.HttpStatusError{
+			Code: http.StatusMethodNotAllowed,
+			Err:  "Invalid HTTP verb",
+		}
+	}
+
+	// Call the handler
+	return handler.Serve(env, r)
 }

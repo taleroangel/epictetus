@@ -89,7 +89,11 @@ func main() {
 		Routes: map[string]handler.HttpEnvHdlr{
 			"/auth/signin": handler.HttpEnvHdlrFunc(routes.AuthLoginHandler),
 			"/*": middleware.EnsureAuthenticated(router.SubRoute{Routes: map[string]handler.HttpEnvHdlr{
-				"/auth/manage": handler.HttpEnvHdlrFunc(routes.AuthGetUser),
+				"/auth/manage": router.RouteMethods{
+					Methods: map[string]handler.HttpEnvHdlr{
+						"GET": handler.HttpEnvHdlrFunc(routes.AuthGetUser),
+					},
+				},
 			}}),
 		},
 	}
